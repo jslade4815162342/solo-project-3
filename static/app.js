@@ -1,4 +1,9 @@
 // Single-service deployment: same-origin API
+if (window.__movieAppInitialized) {
+  throw new Error("App initialized twice (likely Cloudflare Rocket Loader).");
+}
+window.__movieAppInitialized = true;
+
 const API_BASE = "";
 
 let state = {
