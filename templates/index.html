@@ -1,330 +1,187 @@
 
-:root {
-  --bg: #0b0d12;
-  --panel: #121622;
-  --panel2: #0f1320;
-  --text: #e9ecf1;
-  --muted: #a9b1c3;
-  --border: #232a3a;
-  --primary: #6ea8fe;
-  --danger: #ff6b6b;
-  --ok: #32d296;
-  --shadow: 0 10px 30px rgba(0,0,0,.35);
-  --radius: 16px;
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Movie Collection Manager</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="container header-row">
+      <div>
+        <h1>Movie Collection Manager</h1>
+        <p class="muted">CRUD • SQL-backed • Paging • Sorting • Filtering • Stats</p>
+      </div>
+      <nav class="tabs" aria-label="Views">
+        <button class="tab-btn" data-view="list" aria-current="page">List</button>
+        <button class="tab-btn" data-view="form">Add / Edit</button>
+        <button class="tab-btn" data-view="stats">Stats</button>
+      </nav>
+    </div>
+  </header>
 
-* { box-sizing: border-box; }
+  <main class="container">
+    <section id="flash" class="flash" role="status" aria-live="polite" hidden></section>
 
-html, body {
-  height: 100%;
-  margin: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  color: var(--text);
-  background: radial-gradient(1200px 600px at 15% 0%, #15214a, transparent),
-              radial-gradient(1000px 500px at 90% 20%, #2a1342, transparent),
-              var(--bg);
-}
+    <!-- LIST VIEW -->
+    <section id="view-list" class="view">
+      <div class="panel">
+        <div class="controls">
+          <div class="control">
+            <label for="q">Search</label>
+            <input id="q" type="search" placeholder="Title or director..." />
+          </div>
 
-.container {
-  width: min(1100px, calc(100% - 32px));
-  margin: 0 auto;
-}
+          <div class="control">
+            <label for="sort">Sort</label>
+            <select id="sort">
+              <option value="title">Title</option>
+              <option value="director">Director</option>
+              <option value="year">Year</option>
+              <option value="rating">Rating</option>
+            </select>
+          </div>
 
-.header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: rgba(11, 13, 18, 0.72);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--border);
-}
+          <div class="control">
+            <label for="dir">Direction</label>
+            <select id="dir">
+              <option value="asc">Ascending</option>
+              <option value="desc">Descending</option>
+            </select>
+          </div>
 
-.header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px 0;
-}
+          <div class="control">
+            <label for="pageSize">Page size</label>
+            <select id="pageSize">
+              <option value="5">5</option>
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
+          </div>
 
-h1 {
-  font-size: 20px;
-  margin: 0;
-  letter-spacing: 0.2px;
-}
+          <div class="control control-actions">
+            <button id="apply" class="btn">Apply</button>
+            <button id="reset" class="btn btn-ghost">Reset</button>
+          </div>
+        </div>
+      </div>
 
-h2 {
-  margin: 0 0 12px;
-  font-size: 18px;
-}
+      <div class="panel">
+        <div class="list-header">
+          <div class="muted" id="listMeta">Loading…</div>
+          <button id="newMovie" class="btn btn-primary">+ Add Movie</button>
+        </div>
 
-.muted { color: var(--muted); }
+        <div id="cards" class="cards" aria-live="polite"></div>
 
-.tabs {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
+        <div class="pager">
+          <button id="prevPage" class="btn btn-ghost">Prev</button>
+          <div class="muted" id="pageInfo">Page —</div>
+          <button id="nextPage" class="btn btn-ghost">Next</button>
+        </div>
+      </div>
+    </section>
 
-.tab-btn {
-  border: 1px solid var(--border);
-  background: rgba(18, 22, 34, .6);
-  color: var(--text);
-  padding: 10px 12px;
-  border-radius: 999px;
-  cursor: pointer;
-}
+    <!-- FORM VIEW -->
+    <section id="view-form" class="view" hidden>
+      <div class="panel">
+        <div class="form-header">
+          <div>
+            <h2 id="formTitle">Add Movie</h2>
+            <p class="muted" id="formSubtitle">Create a new record in the SQL database.</p>
+          </div>
+          <button id="cancelEdit" class="btn btn-ghost" hidden>Cancel Edit</button>
+        </div>
 
-.tab-btn[aria-current="page"] {
-  border-color: rgba(110, 168, 254, .6);
-  box-shadow: 0 0 0 4px rgba(110, 168, 254, .12);
-}
+        <form id="movieForm" novalidate>
+          <input type="hidden" id="movieId" />
 
-main { padding: 18px 0 40px; }
+          <div class="grid">
+            <div class="field">
+              <label for="title">Title</label>
+              <input id="title" name="title" required maxlength="120" />
+              <div class="error" id="err-title"></div>
+            </div>
 
-.panel {
-  background: linear-gradient(180deg, rgba(18, 22, 34, .92), rgba(15, 19, 32, .92));
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
-  border-radius: var(--radius);
-  padding: 16px;
-  margin-bottom: 16px;
-}
+            <div class="field">
+              <label for="director">Director</label>
+              <input id="director" name="director" required maxlength="120" />
+              <div class="error" id="err-director"></div>
+            </div>
 
-.flash {
-  border-radius: var(--radius);
-  padding: 12px 14px;
-  margin-bottom: 14px;
-  border: 1px solid var(--border);
-  background: rgba(18,22,34,.75);
-}
+            <div class="field">
+              <label for="year">Year</label>
+              <input id="year" name="year" type="number" min="1888" max="2100" required />
+              <div class="error" id="err-year"></div>
+            </div>
 
-.flash-success { border-color: rgba(50,210,150,.45); }
-.flash-error   { border-color: rgba(255,107,107,.45); }
-.flash-info    { border-color: rgba(110,168,254,.45); }
+            <div class="field">
+              <label for="rating">Rating (0–10)</label>
+              <input id="rating" name="rating" type="number" step="0.1" min="0" max="10" required />
+              <div class="error" id="err-rating"></div>
+            </div>
 
-.controls {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 160px auto;
-  gap: 12px;
-  align-items: end;
-}
+            <div class="field field-wide">
+              <label for="image_url">Image URL</label>
+              <input id="image_url" name="image_url" placeholder="https://..." />
+              <div class="help muted">If blank, a placeholder image is used.</div>
+              <div class="error" id="err-image_url"></div>
+            </div>
+          </div>
 
-.control label {
-  display: block;
-  font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 6px;
-}
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="saveBtn">Save</button>
+            <button type="button" class="btn btn-ghost" id="clearBtn">Clear</button>
+          </div>
+        </form>
+      </div>
+    </section>
 
-.control input, .control select {
-  width: 100%;
-  padding: 10px 10px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: rgba(11,13,18,.35);
-  color: var(--text);
-  outline: none;
-}
+    <!-- STATS VIEW -->
+    <section id="view-stats" class="view" hidden>
+      <div class="panel">
+        <h2>Stats</h2>
+        <p class="muted">Total records is for the entire dataset. Page size is your current setting.</p>
 
-.control-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-}
+        <div class="stats-grid">
+          <div class="stat">
+            <div class="stat-label">Total records</div>
+            <div class="stat-value" id="statTotal">—</div>
+          </div>
 
-.btn {
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: rgba(18,22,34,.55);
-  color: var(--text);
-  cursor: pointer;
-}
+          <div class="stat">
+            <div class="stat-label">Current page size</div>
+            <div class="stat-value" id="statPageSize">—</div>
+          </div>
 
-.btn:hover { border-color: rgba(255,255,255,.16); }
-.btn:disabled { opacity: .55; cursor: not-allowed; }
+          <div class="stat">
+            <div class="stat-label">Average rating</div>
+            <div class="stat-value" id="statAvg">—</div>
+          </div>
 
-.btn-primary {
-  background: rgba(110,168,254,.16);
-  border-color: rgba(110,168,254,.45);
-}
+          <div class="stat">
+            <div class="stat-label">Top director (by count)</div>
+            <div class="stat-value" id="statTop">—</div>
+            <div class="muted" id="statTopCount"></div>
+          </div>
+        </div>
 
-.btn-danger {
-  background: rgba(255,107,107,.16);
-  border-color: rgba(255,107,107,.45);
-}
+        <div class="form-actions">
+          <button id="refreshStats" class="btn">Refresh Stats</button>
+        </div>
+      </div>
+    </section>
+  </main>
 
-.btn-ghost {
-  background: rgba(18,22,34,.25);
-}
+  <footer class="footer">
+    <div class="container muted">
+      Deployed as a single service (UI + API) • Backed by SQL
+    </div>
+  </footer>
 
-.list-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.cards {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.card {
-  display: grid;
-  grid-template-columns: 110px 1fr;
-  gap: 12px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: rgba(11,13,18,.25);
-  padding: 12px;
-  min-height: 140px;
-}
-
-.poster {
-  width: 110px;
-  height: 165px;
-  border-radius: 12px;
-  object-fit: cover;
-  border: 1px solid rgba(255,255,255,.08);
-  background: rgba(255,255,255,.03);
-}
-
-.card-body { display: flex; flex-direction: column; gap: 8px; }
-
-.card-title {
-  font-weight: 700;
-  font-size: 15px;
-}
-
-.card-meta {
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.3;
-}
-
-.card-actions {
-  margin-top: auto;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.pager {
-  margin-top: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.empty {
-  padding: 18px;
-  border: 1px dashed rgba(255,255,255,.18);
-  border-radius: 14px;
-  color: var(--muted);
-  text-align: center;
-}
-
-.form-header {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.field label {
-  display: block;
-  font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 6px;
-}
-
-.field input {
-  width: 100%;
-  padding: 10px 10px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: rgba(11,13,18,.35);
-  color: var(--text);
-  outline: none;
-}
-
-.field-wide { grid-column: 1 / -1; }
-
-.help { font-size: 12px; margin-top: 6px; }
-
-.error {
-  min-height: 16px;
-  margin-top: 6px;
-  color: var(--danger);
-  font-size: 12px;
-}
-
-.form-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 14px;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.stat {
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: rgba(11,13,18,.25);
-  padding: 12px;
-}
-
-.stat-label {
-  color: var(--muted);
-  font-size: 12px;
-  margin-bottom: 8px;
-}
-
-.stat-value {
-  font-size: 20px;
-  font-weight: 800;
-}
-
-.footer {
-  border-top: 1px solid var(--border);
-  padding: 18px 0 28px;
-  color: var(--muted);
-}
-
-/* Responsive */
-@media (max-width: 980px) {
-  .controls {
-    grid-template-columns: 1fr 1fr;
-  }
-  .control-actions {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-  }
-  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-@media (max-width: 620px) {
-  .header-row { flex-direction: column; align-items: flex-start; }
-  .cards { grid-template-columns: 1fr; }
-  .grid { grid-template-columns: 1fr; }
-  .stats-grid { grid-template-columns: 1fr; }
-}
+  <script src="/static/app.js"></script>
+</body>
+</html>
