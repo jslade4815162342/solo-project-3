@@ -2,7 +2,6 @@
 
 ## Live URL
 - https://jslade-movie-collection-manager.org  
-- (Optional) https://www.jslade-movie-collection-manager.org
 
 ## Domain
 - Domain: `jslade-movie-collection-manager.org`
